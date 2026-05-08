@@ -1575,11 +1575,11 @@
       #touchUI .tbtn.ready .ring {
         display: none;
       }
-      /* Aim settings icon (top-right, visible during gameplay) */
+      /* Aim settings icon — repositioned to left side so it never overlaps LEAVE */
       #aimSettingsIcon {
         position: absolute;
-        top: 10px;
-        right: 100px;
+        top: 52px;
+        left: 14px;
         width: 44px;
         height: 44px;
         border-radius: 50%;
@@ -1606,22 +1606,31 @@
         background: rgba(34, 232, 255, 0.18);
         box-shadow: 0 0 12px rgba(34, 232, 255, 0.35);
       }
-      /* Aim mode popup — drops down from the settings icon */
+      /* Aim mode popup — opens below the aim settings icon (left side) */
       #aimModeBar {
         position: absolute;
-        top: 62px;
-        right: 10px;
+        top: 104px;
+        left: 14px;
         z-index: 31;
         display: none;
         flex-direction: column;
         gap: 6px;
         pointer-events: auto;
         align-items: stretch;
-        min-width: 120px;
-        background: rgba(0, 0, 0, 0.82);
+        min-width: 110px;
+        background: rgba(0, 0, 0, 0.88);
         border: 1px solid rgba(34, 232, 255, 0.25);
         border-radius: 8px;
         padding: 8px;
+      }
+      /* On very small landscape screens, shrink action buttons so they don't crowd */
+      @media (max-height: 400px) {
+        #touchUI .tbtn { width: 54px !important; height: 54px !important; font-size: 9px !important; }
+        #touchUI .tbtn.big { width: 80px !important; height: 80px !important; font-size: 12px !important; }
+        #touchUI .actions { gap: 8px !important; bottom: 10px !important; right: 8px !important; }
+        #touchUI .actions .row2 { gap: 8px !important; }
+        #aimSettingsIcon { top: 46px !important; left: 10px !important; width: 36px !important; height: 36px !important; }
+        #aimModeBar { top: 90px !important; left: 10px !important; }
       }
       #aimModeBar.on {
         display: flex;
@@ -3207,6 +3216,25 @@
 
     <!-- Connection status pill — fixed top-left overlay -->
     <div id="connPill" class="conn-pill conn-offline"><span class="conn-dot"></span>OFFLINE</div>
+
+    <!-- Fullscreen + orientation lock for mobile/Capacitor -->
+    <script>
+      (function () {
+        var _fsRequested = false;
+        function tryFullscreen() {
+          if (_fsRequested) return;
+          _fsRequested = true;
+          var el = document.documentElement;
+          var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+          if (req) req.call(el).catch(function(){});
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(function(){});
+          }
+        }
+        document.addEventListener('touchstart', tryFullscreen, { once: true, passive: true });
+        document.addEventListener('click', tryFullscreen, { once: true, passive: true });
+      })();
+    </script>
 
     <!-- Backend config — set BACKEND_URL here when hosting frontend externally -->
     <script src="config.js"></script>
