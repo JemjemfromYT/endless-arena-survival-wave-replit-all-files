@@ -1501,12 +1501,21 @@
       #touchUI .actions {
         position: absolute;
         right: 14px;
-        bottom: 18px;
+        /* Sits ABOVE the pinned FIRE button: 18px bottom + 96px FIRE + 16px gap */
+        bottom: 130px;
         display: flex;
         flex-direction: column;
         align-items: flex-end;
         gap: 12px;
         pointer-events: auto;
+      }
+      /* FIRE button is pinned independently so extra buttons (SKILL, pickup,
+         REVIVE) stacking into .actions can never push it off-screen */
+      #tAttack {
+        position: absolute !important;
+        bottom: 18px !important;
+        right: 14px !important;
+        /* Width/height/border/background come from .tbtn.big */
       }
       #touchUI .actions .row2 {
         display: flex;
@@ -1575,11 +1584,11 @@
       #touchUI .tbtn.ready .ring {
         display: none;
       }
-      /* Aim settings icon — repositioned to left side so it never overlaps LEAVE */
+      /* Aim settings icon — right side, below the LEAVE button stack */
       #aimSettingsIcon {
         position: absolute;
-        top: 52px;
-        left: 14px;
+        top: 70px;
+        right: 14px;
         width: 44px;
         height: 44px;
         border-radius: 50%;
@@ -1606,11 +1615,11 @@
         background: rgba(34, 232, 255, 0.18);
         box-shadow: 0 0 12px rgba(34, 232, 255, 0.35);
       }
-      /* Aim mode popup — opens below the aim settings icon (left side) */
+      /* Aim mode popup — drops down from aim icon (right side) */
       #aimModeBar {
         position: absolute;
-        top: 104px;
-        left: 14px;
+        top: 122px;
+        right: 14px;
         z-index: 31;
         display: none;
         flex-direction: column;
@@ -1623,14 +1632,16 @@
         border-radius: 8px;
         padding: 8px;
       }
-      /* On very small landscape screens, shrink action buttons so they don't crowd */
+      /* On very small landscape screens, shrink action buttons so they fit */
       @media (max-height: 400px) {
-        #touchUI .tbtn { width: 54px !important; height: 54px !important; font-size: 9px !important; }
-        #touchUI .tbtn.big { width: 80px !important; height: 80px !important; font-size: 12px !important; }
-        #touchUI .actions { gap: 8px !important; bottom: 10px !important; right: 8px !important; }
+        #tAttack { width: 76px !important; height: 76px !important; font-size: 12px !important; bottom: 10px !important; right: 8px !important; }
+        #touchUI .tbtn { width: 52px !important; height: 52px !important; font-size: 9px !important; }
+        #touchUI .actions { gap: 8px !important; bottom: 100px !important; right: 8px !important; }
         #touchUI .actions .row2 { gap: 8px !important; }
-        #aimSettingsIcon { top: 46px !important; left: 10px !important; width: 36px !important; height: 36px !important; }
-        #aimModeBar { top: 90px !important; left: 10px !important; }
+        #tFireJoy { bottom: 4px !important; right: 0px !important; width: 100px !important; height: 100px !important; }
+        #tDragFireJoy { bottom: 4px !important; right: 0px !important; width: 100px !important; height: 100px !important; }
+        #aimSettingsIcon { top: 52px !important; right: 10px !important; width: 36px !important; height: 36px !important; }
+        #aimModeBar { top: 96px !important; right: 10px !important; }
       }
       #aimModeBar.on {
         display: flex;
