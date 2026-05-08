@@ -3217,11 +3217,12 @@
             <div class="ring"></div>
           </div>
         </div>
-        <!-- FIRE always last = anchored at very bottom of the stack -->
-        <div class="tbtn big ready" id="tAttack">
-          FIRE
-          <div class="ring"></div>
-        </div>
+      </div>
+      <!-- FIRE is outside .actions so stacking extra buttons (SKILL, pickups,
+           REVIVE) can never push it off-screen. Positioned absolutely to #touchUI. -->
+      <div class="tbtn big ready" id="tAttack">
+        FIRE
+        <div class="ring"></div>
       </div>
     </div>
 
