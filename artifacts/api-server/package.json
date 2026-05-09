@@ -10,6 +10,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@colyseus/core": "0.15.57",
+    "@colyseus/schema": "^2.0.37",
+    "@colyseus/ws-transport": "0.15.3",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",
