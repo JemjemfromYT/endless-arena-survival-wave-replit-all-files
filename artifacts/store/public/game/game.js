@@ -582,33 +582,30 @@ function refreshSPDisplay(){
   const el = document.getElementById('spBadge');
   if(!el) return;
   const loggedIn = !!window.__nsProfileLoggedIn;
+  const online = navigator.onLine;
+  // SP is only active when the player is both logged in AND online.
+  // Offline play never earns SP — show 0 and dim the badge.
+  const active = loggedIn && online;
   const offlineNote = document.getElementById('spOfflineNote');
   el.style.display = 'block';
-  if(loggedIn){
-    const spText = `⭐ ${getSP().toLocaleString()} SP`;
-    // Preserve the spOfflineNote child span if present
-    if(offlineNote){
-      el.childNodes[0] && el.childNodes[0].nodeType === 3
-        ? (el.childNodes[0].textContent = spText)
-        : el.insertBefore(document.createTextNode(spText), el.firstChild);
-    } else {
-      el.textContent = spText;
-    }
+  const spText = active ? `⭐ ${getSP().toLocaleString()} SP` : `⭐ 0 SP`;
+  if(offlineNote){
+    el.childNodes[0] && el.childNodes[0].nodeType === 3
+      ? (el.childNodes[0].textContent = spText)
+      : el.insertBefore(document.createTextNode(spText), el.firstChild);
+    // Show OFFLINE tag only when logged in but no internet
+    offlineNote.style.display = (loggedIn && !online) ? 'inline' : 'none';
+  } else {
+    el.textContent = spText;
+  }
+  if(active){
     el.style.opacity = '';
     el.style.filter = '';
     el.title = '';
   } else {
-    const spText = `⭐ 0 SP`;
-    if(offlineNote){
-      el.childNodes[0] && el.childNodes[0].nodeType === 3
-        ? (el.childNodes[0].textContent = spText)
-        : el.insertBefore(document.createTextNode(spText), el.firstChild);
-    } else {
-      el.textContent = spText;
-    }
     el.style.opacity = '0.4';
     el.style.filter = 'grayscale(0.7)';
-    el.title = 'Sign in to receive SP points';
+    el.title = online ? 'Sign in to receive SP points' : 'Offline — SP unavailable';
   }
 }
 
@@ -5876,3 +5873,6 @@ async function bootPreload(){
 bootPreload();
 
 window.addEventListener('beforeunload', ()=>{ if(activeRoom){ try{ activeRoom.leave(); }catch(e){} } });
+// Keep SP badge in sync when connectivity changes
+window.addEventListener('online',  ()=>{ refreshSPDisplay(); });
+window.addEventListener('offline', ()=>{ refreshSPDisplay(); });

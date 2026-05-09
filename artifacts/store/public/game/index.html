@@ -806,6 +806,35 @@
         }
       }
 
+      /* ── Floating hero info bar at bottom of hero-select screen ── */
+      #heroDesc {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 80;
+        padding: 10px 20px 14px;
+        background: linear-gradient(
+          to top,
+          rgba(5, 0, 18, 0.97) 0%,
+          rgba(13, 3, 32, 0.92) 60%,
+          rgba(20, 5, 45, 0.82) 100%
+        );
+        border-top: 1px solid rgba(34, 232, 255, 0.22);
+        box-shadow: 0 -4px 28px rgba(34, 232, 255, 0.08), 0 -1px 0 rgba(157, 92, 255, 0.15);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--muted);
+        min-height: 52px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      #heroDesc:empty { display: none; }
+      #heroDesc b { letter-spacing: 0.04em; }
+
       /* ===========================================================
          Leaderboard wedding-scenario cinematic intro overlay
          Shown for ~1.8s when entering the leaderboard scene.
@@ -1510,11 +1539,13 @@
         pointer-events: auto;
       }
       /* FIRE button is pinned independently so extra buttons (SKILL, pickup,
-         REVIVE) stacking into .actions can never push it off-screen */
+         REVIVE) stacking into .actions can never push it off-screen.
+         z-index:20 keeps it above .actions and joystick elements. */
       #tAttack {
         position: absolute !important;
         bottom: 18px !important;
         right: 14px !important;
+        z-index: 20 !important;
         /* Width/height/border/background come from .tbtn.big */
       }
       #touchUI .actions .row2 {
@@ -2554,7 +2585,7 @@
       </div>
 
       <div id="heroSelect" class="screen hidden">
-        <div class="inner col">
+        <div class="inner col" style="padding-bottom: 72px">
           <div
             class="row"
             style="justify-content: space-between; align-items: center"
@@ -2566,17 +2597,9 @@
             </div>
           </div>
           <div id="heroGrid" class="grid heroes"></div>
-          <div
-            id="heroDesc"
-            class="panel"
-            style="
-              padding: 14px;
-              color: var(--muted);
-              font-size: 13px;
-              line-height: 1.6;
-            "
-          ></div>
         </div>
+        <!-- Floating hero info bar — always visible at the bottom -->
+        <div id="heroDesc"></div>
       </div>
 
       <div id="mpMenu" class="screen hidden">
