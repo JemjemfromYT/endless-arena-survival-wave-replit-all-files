@@ -2289,6 +2289,34 @@
         text-transform: uppercase;
         min-height: 14px;
       }
+      #tapPrompt {
+        margin-top: 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #tapPrompt .tap-label {
+        font-family: 'Orbitron', monospace;
+        font-size: clamp(13px, 3vw, 18px);
+        font-weight: 900;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: #22e8ff;
+        animation: tapPulse 1.2s ease-in-out infinite;
+      }
+      #tapPrompt .tap-sub {
+        font-size: 10px;
+        letter-spacing: 0.22em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      @keyframes tapPulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.35; }
+      }
       .desktop-only {
         display: inline;
       }
@@ -2477,6 +2505,10 @@
       <div class="lbar"><i id="loadBar"></i></div>
       <div class="lpct" id="loadPct">0%</div>
       <div class="ltask" id="loadTask">INITIALIZING…</div>
+      <div id="tapPrompt" class="hidden">
+        <div class="tap-label">▶ TAP TO START</div>
+        <div class="tap-sub">Touch anywhere to begin</div>
+      </div>
     </div>
     <canvas id="game"></canvas>
 

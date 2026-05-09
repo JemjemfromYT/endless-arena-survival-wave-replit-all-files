@@ -5838,8 +5838,28 @@ async function bootPreload(){
     }catch(_){}
   };
   function dismissLoader(){
-    try{ setScene('menu'); }catch(e){ console.warn('setScene failed',e); }
-    if(loadEl){ loadEl.classList.add('hide'); setTimeout(()=>{ try{ if(loadEl.parentNode) loadEl.parentNode.removeChild(loadEl); }catch(_){} }, 700); }
+    // Show "TAP TO START" so the user's first touch is a real gesture.
+    // playMusic() is called inside that handler, which guarantees Android
+    // WebView's autoplay policy is satisfied regardless of network state.
+    const tapEl = document.getElementById('tapPrompt');
+    if(tapEl){
+      if(barEl) barEl.style.display = 'none';
+      if(pctEl) pctEl.style.display = 'none';
+      if(taskEl) taskEl.style.display = 'none';
+      tapEl.classList.remove('hidden');
+      function enter(e){
+        e.preventDefault();
+        tapEl.removeEventListener('click', enter);
+        tapEl.removeEventListener('touchstart', enter);
+        try{ setScene('menu'); }catch(err){ console.warn('setScene failed',err); }
+        if(loadEl){ loadEl.classList.add('hide'); setTimeout(()=>{ try{ if(loadEl.parentNode) loadEl.parentNode.removeChild(loadEl); }catch(_){} }, 700); }
+      }
+      tapEl.addEventListener('click', enter);
+      tapEl.addEventListener('touchstart', enter, {passive:false});
+    } else {
+      try{ setScene('menu'); }catch(e){ console.warn('setScene failed',e); }
+      if(loadEl){ loadEl.classList.add('hide'); setTimeout(()=>{ try{ if(loadEl.parentNode) loadEl.parentNode.removeChild(loadEl); }catch(_){} }, 700); }
+    }
   }
   // Hard safety: if anything goes wrong, show the menu within 9 seconds.
   const safetyTimer = setTimeout(dismissLoader, 9000);
