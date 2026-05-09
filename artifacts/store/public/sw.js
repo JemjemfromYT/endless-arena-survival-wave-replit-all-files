@@ -2,7 +2,7 @@
    Works on both Replit (/sw.js, scope /) and
    GitHub Pages (/repo-name/sw.js, scope /repo-name/).  */
 
-const CACHE_NAME = 'endless-arena-v7';
+const CACHE_NAME = 'endless-arena-v8';
 
 /* Detect base path: '' on Replit, '/repo-name' on GitHub Pages */
 const BASE_PATH = self.location.pathname.replace('/sw.js', '');
@@ -73,12 +73,27 @@ const SOUND_ASSETS = [
   BASE_PATH + '/game/sounds/boss_void_zone.mp3',
 ];
 
-/* ── Install: cache core assets immediately ───────────────────────── */
+/* Cache each sound individually — skip any that fail so a single missing
+   file never breaks the whole install. */
+function cacheSoundsOpportunistically(cache) {
+  return Promise.all(
+    SOUND_ASSETS.map(function (url) {
+      return fetch(url, { cache: 'no-cache' }).then(function (res) {
+        if (res.ok) return cache.put(url, res);
+      }).catch(function () {});
+    })
+  );
+}
+
+/* ── Install: cache core assets + all sounds immediately ─────────── */
 self.addEventListener('install', function (event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function (cache) {
       console.log('[SW] Caching core assets');
-      return cache.addAll(CORE_ASSETS);
+      return cache.addAll(CORE_ASSETS).then(function () {
+        console.log('[SW] Caching sounds at install time');
+        return cacheSoundsOpportunistically(cache);
+      });
     }).then(function () {
       return self.skipWaiting();
     })
@@ -95,14 +110,6 @@ self.addEventListener('activate', function (event) {
       );
     }).then(function () {
       console.log('[SW] Activated, old caches cleared');
-      /* Cache sounds in the background without blocking activation */
-      caches.open(CACHE_NAME).then(function (cache) {
-        SOUND_ASSETS.forEach(function (url) {
-          fetch(url).then(function (res) {
-            if (res.ok) cache.put(url, res);
-          }).catch(function () {});
-        });
-      });
       return self.clients.claim();
     })
   );
@@ -146,7 +153,8 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  /* All other game assets — cache-first */
+  /* All other game assets — cache-first, fall back to network,
+     fall back to cache-on-the-fly for anything not pre-cached */
   event.respondWith(
     caches.match(event.request).then(function (cached) {
       if (cached) return cached;
@@ -161,7 +169,11 @@ self.addEventListener('fetch', function (event) {
           });
         }
         return response;
-      }).catch(function () { return undefined; });
+      }).catch(function () {
+        /* Network failed and nothing in cache — return a 503 so the
+           audio element gets a defined error rather than hanging. */
+        return new Response('', { status: 503 });
+      });
     })
   );
 });
