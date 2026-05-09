@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "yRFsYwrOzNtuqS7IaBN6k"
+uri = "file://www.tar.gz"
+type = "unspecified"
+title = "www folder (Capacitor APK)"

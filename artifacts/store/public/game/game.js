@@ -1880,14 +1880,14 @@ function updatePlayer(p, dt, isLocal){
       }
       if(best){
         p.angle = Math.atan2(best.y - p.y, best.x - p.x);
-        touch.attack = true;
-      } else if(touch.active && (touch.mx || touch.my)){
-        p.angle = Math.atan2(touch.my, touch.mx);
-        touch.attack = true;
+        touch.autoFire = true;
       } else {
-        touch.attack = false;
+        touch.autoFire = false;
+        if(touch.active && (touch.mx || touch.my)){
+          p.angle = Math.atan2(touch.my, touch.mx);
+        }
+        // else: keep previous angle
       }
-      // else: leave p.angle unchanged from last frame
       }
     } else if(!mouse.moved){
       // DESKTOP idle: auto-aim at nearest enemy until the player moves the mouse
@@ -1903,7 +1903,7 @@ function updatePlayer(p, dt, isLocal){
   if(p.bossSkill){ p.bossSkill.cd = Math.max(0, p.bossSkill.cd - dt); }
   if(isLocal && (keys[' ']||touch.dashEdge) && p.dashCd<=0){ p.dashCd=2*p.mods.cdr; p.dashing=0.18; SFX.dash(); particles(p.x,p.y,h.color,16,220,0.4,2); queueAction({t:'dash'}); }
   touch.dashEdge=false;
-  if(isLocal && (mouse.down||touch.attack) && p.atkCd<=0) doAttack(p);
+  if(isLocal && (mouse.down||touch.attack||touch.autoFire) && p.atkCd<=0) doAttack(p);
   if(isLocal && (keys['q']||touch.abiEdge) && p.abiCd<=0) doAbility(p);
   touch.abiEdge=false;
   if(isLocal && (keys['f']||touch.bossEdge) && p.bossSkill && p.bossSkill.cd<=0) castPlayerBossSkill(p);
