@@ -406,7 +406,14 @@ const SFX = (() => {
       _fadeAudio(old, startVol, 0, fadeMs, '_fadeOutRaf', ()=>{ try{ old.pause(); }catch(e){} });
     }
   }
-  function unlock(){ if(music && music.paused) music.play().catch(()=>{}); }
+  function unlock(){
+    if(music && music.paused){
+      music.play().catch(()=>{});
+    } else if(!music && currentTrack){
+      // play() failed entirely on first attempt — retry on first user gesture
+      playMusic(currentTrack, 0);
+    }
+  }
   ['pointerdown','touchstart','keydown','click'].forEach(ev=>window.addEventListener(ev, unlock, {passive:true}));
   function preload(key, src){
     return new Promise((resolve)=>{
@@ -5881,7 +5888,13 @@ async function bootPreload(){
   clearTimeout(safetyTimer);
   // Pre-warm menu and leaderboard music BEFORE showing the menu so the first
   // playback is instant and has no decode stutter.
-  try { SFX.prewarmMusic('bgm_menu', 'leaderboard'); } catch(_){}
+  // Prewarm ALL music tracks so their Audio nodes exist before first play.
+  // Pre-created nodes bypass Android WebView autoplay restrictions on first launch.
+  try {
+    const allTracks = ['bgm_menu', 'bgm_game', 'god', 'leaderboard'];
+    for(let i=1; i<=11; i++) allTracks.push('boss'+i);
+    SFX.prewarmMusic(...allTracks);
+  } catch(_){}
   dismissLoader();
   refreshSPDisplay();
 
