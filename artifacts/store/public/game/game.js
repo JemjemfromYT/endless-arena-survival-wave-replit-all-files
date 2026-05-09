@@ -407,10 +407,13 @@ const SFX = (() => {
     }
   }
   function unlock(){
-    if(music && music.paused){
+    // Always attempt play() on user interaction — Android WebView blocks autoplay
+    // and leaves music.paused===false even though nothing is playing. Calling
+    // play() on an already-running track is a safe no-op.
+    if(music){
       music.play().catch(()=>{});
-    } else if(!music && currentTrack){
-      // play() failed entirely on first attempt — retry on first user gesture
+    } else if(currentTrack){
+      // play() threw entirely on first attempt — rebuild and retry
       playMusic(currentTrack, 0);
     }
   }
