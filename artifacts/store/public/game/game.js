@@ -324,8 +324,16 @@ const SFX = (() => {
   function abilityRemote(h='james'){play('q_'+h, `${BASE}q_${h}.mp3`, 0.5);}
   function dashRemote(){play('dash', `${BASE}dash.mp3`, 0.4);}
   let music=null, currentTrack=null;
-  // Separate RAF handles for fade-out and fade-in so they never stomp each other.
+  // Separate RAF handles for fade-out and fade-in so concurrent fades never stomp each other.
   let _fadeOutRaf=null, _fadeInRaf=null;
+  // Track the node currently being faded OUT so we can immediately silence it
+  // if a new playMusic() call cancels the fade mid-flight (prevents orphaned looping tracks).
+  let _fadingOutNode=null;
+  // Shared AudioContext — resuming it from a user gesture unlocks ALL Audio element
+  // plays on the page (music + every SFX pool element) with a single tap.
+  const _audioCtx = (() => {
+    try{ return new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ return null; }
+  })();
   // Pre-buffered Audio objects — loaded before the menu so playMusic is instant.
   const _musicPreload = {};
   function prewarmMusic(...tracks){
@@ -334,16 +342,28 @@ const SFX = (() => {
       try{
         const a = new Audio(`${BASE}${t}.mp3`);
         a.preload = 'auto'; a.loop = true; a.volume = 0;
-        a.load(); // start download without playing (no autoplay restriction)
+        a.load();
         _musicPreload[t] = a;
       }catch(e){}
     }
   }
-  function _clearFadeOut(){ if(_fadeOutRaf){ cancelAnimationFrame(_fadeOutRaf); _fadeOutRaf=null; } }
-  function _clearFadeIn(){  if(_fadeInRaf){  cancelAnimationFrame(_fadeInRaf);  _fadeInRaf=null;  } }
-  // Fade a single audio node; rafSlot is either '_fadeOutRaf' or '_fadeInRaf'.
+  function _killNode(a){
+    if(!a) return;
+    try{ a.volume = 0; }catch(e){}
+    try{ a.pause(); }catch(e){}
+  }
+  function _clearFadeOut(){
+    if(_fadeOutRaf){ cancelAnimationFrame(_fadeOutRaf); _fadeOutRaf=null; }
+    // If the fade-out was cancelled mid-flight, immediately silence+pause the node
+    // so it doesn't become an orphan looping track forever.
+    if(_fadingOutNode){ _killNode(_fadingOutNode); _fadingOutNode=null; }
+  }
+  function _clearFadeIn(){
+    if(_fadeInRaf){ cancelAnimationFrame(_fadeInRaf); _fadeInRaf=null; }
+  }
   function _fadeAudio(audio, from, to, ms, rafKey, onDone){
     if(!audio){ if(onDone) onDone(); return; }
+    if(rafKey === '_fadeOutRaf') _fadingOutNode = audio;
     const t0 = performance.now();
     function step(now){
       const t = Math.min(1, (now - t0) / ms);
@@ -354,7 +374,7 @@ const SFX = (() => {
         if(rafKey === '_fadeOutRaf') _fadeOutRaf = id;
         else _fadeInRaf = id;
       } else {
-        if(rafKey === '_fadeOutRaf') _fadeOutRaf = null;
+        if(rafKey === '_fadeOutRaf'){ _fadeOutRaf = null; _fadingOutNode = null; }
         else _fadeInRaf = null;
         if(onDone) onDone();
       }
@@ -368,7 +388,6 @@ const SFX = (() => {
     fadeMs = (fadeMs == null) ? 1200 : fadeMs;
     if(currentTrack===track && music && !music.paused) return;
     const old = music;
-    // Use the pre-warmed Audio if available — avoids the first-play decode delay.
     let next = _musicPreload[track] || null;
     delete _musicPreload[track];
     if(!next){
@@ -384,13 +403,13 @@ const SFX = (() => {
     }
     music = next;
     currentTrack = track;
-    // Cancel any in-flight fades independently.
+    // Cancel in-flight fades. _clearFadeOut() also immediately silences+pauses
+    // any node whose fade was cancelled, preventing orphaned looping tracks.
     _clearFadeOut();
     _clearFadeIn();
-    // Fade old track out, new track in — each on its own RAF slot.
     if(old){
       const startVol = (typeof old.volume === 'number') ? old.volume : VOL.music;
-      _fadeAudio(old, startVol, 0, fadeMs, '_fadeOutRaf', ()=>{ try{ old.pause(); }catch(e){} });
+      _fadeAudio(old, startVol, 0, fadeMs, '_fadeOutRaf', ()=>{ _killNode(old); });
     }
     if(next){
       _fadeAudio(next, 0, VOL.music, fadeMs, '_fadeInRaf');
@@ -403,17 +422,19 @@ const SFX = (() => {
     _clearFadeIn();
     if(old){
       const startVol = (typeof old.volume === 'number') ? old.volume : VOL.music;
-      _fadeAudio(old, startVol, 0, fadeMs, '_fadeOutRaf', ()=>{ try{ old.pause(); }catch(e){} });
+      _fadeAudio(old, startVol, 0, fadeMs, '_fadeOutRaf', ()=>{ _killNode(old); });
     }
   }
   function unlock(){
-    // Always attempt play() on user interaction — Android WebView blocks autoplay
-    // and leaves music.paused===false even though nothing is playing. Calling
-    // play() on an already-running track is a safe no-op.
+    // Resume the shared AudioContext — this unlocks ALL Audio element plays on the
+    // page (music AND every SFX pool element) with a single user gesture.
+    if(_audioCtx && _audioCtx.state === 'suspended'){
+      _audioCtx.resume().catch(()=>{});
+    }
+    // Also explicitly restart music if it was blocked on first attempt.
     if(music){
       music.play().catch(()=>{});
     } else if(currentTrack){
-      // play() threw entirely on first attempt — rebuild and retry
       playMusic(currentTrack, 0);
     }
   }
