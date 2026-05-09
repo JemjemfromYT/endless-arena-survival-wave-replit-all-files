@@ -323,7 +323,9 @@ const SFX = (() => {
   function fireRemote(h='james'){play('fire_'+h, `${BASE}fire_${h}.mp3`, 0.45);}
   function abilityRemote(h='james'){play('q_'+h, `${BASE}q_${h}.mp3`, 0.5);}
   function dashRemote(){play('dash', `${BASE}dash.mp3`, 0.4);}
-  let music=null, currentTrack=null, fadeRaf=null;
+  let music=null, currentTrack=null;
+  // Separate RAF handles for fade-out and fade-in so they never stomp each other.
+  let _fadeOutRaf=null, _fadeInRaf=null;
   // Pre-buffered Audio objects — loaded before the menu so playMusic is instant.
   const _musicPreload = {};
   function prewarmMusic(...tracks){
@@ -337,18 +339,29 @@ const SFX = (() => {
       }catch(e){}
     }
   }
-  function _clearFade(){ if(fadeRaf){ cancelAnimationFrame(fadeRaf); fadeRaf=null; } }
-  function _fadeAudio(audio, from, to, ms, onDone){
+  function _clearFadeOut(){ if(_fadeOutRaf){ cancelAnimationFrame(_fadeOutRaf); _fadeOutRaf=null; } }
+  function _clearFadeIn(){  if(_fadeInRaf){  cancelAnimationFrame(_fadeInRaf);  _fadeInRaf=null;  } }
+  // Fade a single audio node; rafSlot is either '_fadeOutRaf' or '_fadeInRaf'.
+  function _fadeAudio(audio, from, to, ms, rafKey, onDone){
     if(!audio){ if(onDone) onDone(); return; }
     const t0 = performance.now();
     function step(now){
       const t = Math.min(1, (now - t0) / ms);
       const v = from + (to - from) * t;
       try { audio.volume = Math.max(0, Math.min(1, v)); } catch(e){}
-      if(t < 1) fadeRaf = requestAnimationFrame(step);
-      else { fadeRaf = null; if(onDone) onDone(); }
+      if(t < 1){
+        const id = requestAnimationFrame(step);
+        if(rafKey === '_fadeOutRaf') _fadeOutRaf = id;
+        else _fadeInRaf = id;
+      } else {
+        if(rafKey === '_fadeOutRaf') _fadeOutRaf = null;
+        else _fadeInRaf = null;
+        if(onDone) onDone();
+      }
     }
-    fadeRaf = requestAnimationFrame(step);
+    const id = requestAnimationFrame(step);
+    if(rafKey === '_fadeOutRaf') _fadeOutRaf = id;
+    else _fadeInRaf = id;
   }
   // Crossfade music tracks. fadeMs default 1200ms (per-phase boss themes).
   function playMusic(track, fadeMs){
@@ -371,23 +384,26 @@ const SFX = (() => {
     }
     music = next;
     currentTrack = track;
-    _clearFade();
-    // Fade old out, new in (in parallel-ish via two RAFs)
+    // Cancel any in-flight fades independently.
+    _clearFadeOut();
+    _clearFadeIn();
+    // Fade old track out, new track in — each on its own RAF slot.
     if(old){
       const startVol = (typeof old.volume === 'number') ? old.volume : VOL.music;
-      _fadeAudio(old, startVol, 0, fadeMs, ()=>{ try{ old.pause(); }catch(e){} });
+      _fadeAudio(old, startVol, 0, fadeMs, '_fadeOutRaf', ()=>{ try{ old.pause(); }catch(e){} });
     }
     if(next){
-      _fadeAudio(next, 0, VOL.music, fadeMs);
+      _fadeAudio(next, 0, VOL.music, fadeMs, '_fadeInRaf');
     }
   }
   function stopMusic(fadeMs){
     fadeMs = (fadeMs == null) ? 600 : fadeMs;
     const old = music; music = null; currentTrack = null;
-    _clearFade();
+    _clearFadeOut();
+    _clearFadeIn();
     if(old){
       const startVol = (typeof old.volume === 'number') ? old.volume : VOL.music;
-      _fadeAudio(old, startVol, 0, fadeMs, ()=>{ try{ old.pause(); }catch(e){} });
+      _fadeAudio(old, startVol, 0, fadeMs, '_fadeOutRaf', ()=>{ try{ old.pause(); }catch(e){} });
     }
   }
   function unlock(){ if(music && music.paused) music.play().catch(()=>{}); }
@@ -1880,9 +1896,7 @@ function updatePlayer(p, dt, isLocal){
       }
       if(best){
         p.angle = Math.atan2(best.y - p.y, best.x - p.x);
-        touch.autoFire = true;
       } else {
-        touch.autoFire = false;
         if(touch.active && (touch.mx || touch.my)){
           p.angle = Math.atan2(touch.my, touch.mx);
         }
@@ -1903,7 +1917,7 @@ function updatePlayer(p, dt, isLocal){
   if(p.bossSkill){ p.bossSkill.cd = Math.max(0, p.bossSkill.cd - dt); }
   if(isLocal && (keys[' ']||touch.dashEdge) && p.dashCd<=0){ p.dashCd=2*p.mods.cdr; p.dashing=0.18; SFX.dash(); particles(p.x,p.y,h.color,16,220,0.4,2); queueAction({t:'dash'}); }
   touch.dashEdge=false;
-  if(isLocal && (mouse.down||touch.attack||touch.autoFire) && p.atkCd<=0) doAttack(p);
+  if(isLocal && (mouse.down||touch.attack) && p.atkCd<=0) doAttack(p);
   if(isLocal && (keys['q']||touch.abiEdge) && p.abiCd<=0) doAbility(p);
   touch.abiEdge=false;
   if(isLocal && (keys['f']||touch.bossEdge) && p.bossSkill && p.bossSkill.cd<=0) castPlayerBossSkill(p);
