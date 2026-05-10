@@ -1,8 +1,0 @@
-uploads = []
-generated = []
-
-[[outputs]]
-id = "GQBR0LWEWHwuB8YFGzCgF"
-uri = "file://www.zip"
-type = "unspecified"
-title = "www folder — FIRE fix + SP offline + hero info float"
