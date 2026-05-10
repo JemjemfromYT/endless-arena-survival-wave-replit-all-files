@@ -309,7 +309,22 @@ const SFX = (() => {
   const VOL = { sfx: 0.7, music: 0.35 };
   const pools = {};
   const POOL_SIZE = 4;
-  function makePool(src){ const arr=[]; for(let i=0;i<POOL_SIZE;i++){ const a=new Audio(src); a.preload='auto'; a.volume=VOL.sfx; arr.push(a); } return {arr,i:0}; }
+  function makePool(src){
+    const pool = {arr:[], i:0};
+    // Start with regular-URL elements so the pool is immediately usable.
+    for(let i=0;i<POOL_SIZE;i++){
+      const a=new Audio(src); a.preload='auto'; a.volume=VOL.sfx; pool.arr.push(a);
+    }
+    // Async: upgrade every element to a blob URL so Android WebView can play
+    // the sound offline (blob:// bypasses MediaPlayer's network-connectivity check).
+    _fetchBlob(src).then(function(blobUrl){
+      for(let i=0;i<pool.arr.length;i++){
+        const b=new Audio(blobUrl); b.preload='auto'; b.volume=pool.arr[i].volume;
+        pool.arr[i]=b;
+      }
+    }).catch(function(){});
+    return pool;
+  }
   function getPool(key, src){ if(!pools[key]) pools[key]=makePool(src); return pools[key]; }
   function play(key, src, volMul=1){ try{ const p=getPool(key,src); const a=p.arr[p.i]; p.i=(p.i+1)%p.arr.length; a.currentTime=0; a.volume=VOL.sfx*volMul; const pr=a.play(); if(pr&&pr.catch) pr.catch(()=>{});}catch(e){} }
   function fire(h='james'){play('fire_'+h, `${BASE}fire_${h}.mp3`);}
@@ -336,15 +351,44 @@ const SFX = (() => {
   })();
   // Pre-buffered Audio objects — loaded before the menu so playMusic is instant.
   const _musicPreload = {};
+
+  // On Android WebView, new Audio(src) uses the system MediaPlayer which checks
+  // network connectivity and refuses to load even locally-bundled files when the
+  // device is offline.  fetch() routes through Capacitor's WebViewAssetLoader and
+  // always resolves from the APK bundle regardless of connectivity.
+  // Solution: fetch every audio file → blob URL → Audio(blobUrl).
+  // Blob URLs are purely in-memory and bypass Android's network check entirely.
+  function _fetchBlob(src){
+    return fetch(src, {cache:'force-cache'})
+      .then(function(r){ return r.ok ? r.blob() : Promise.reject(r.status); })
+      .then(function(blob){ return URL.createObjectURL(blob); });
+  }
+
   function prewarmMusic(...tracks){
     for(const t of tracks){
-      if(_musicPreload[t]) continue;
-      try{
-        const a = new Audio(`${BASE}${t}.mp3`);
-        a.preload = 'auto'; a.loop = true; a.volume = 0;
-        a.load();
-        _musicPreload[t] = a;
-      }catch(e){}
+      if(t in _musicPreload) continue; // null = fetch pending, Audio = ready
+      const src = BASE + t + '.mp3';
+      // Mark slot as "pending" with null so concurrent calls don't double-fetch.
+      _musicPreload[t] = null;
+      _fetchBlob(src)
+        .then(function(blobUrl){
+          try{
+            const a = new Audio(blobUrl);
+            a.preload = 'auto'; a.loop = true; a.volume = 0;
+            a.load();
+            _musicPreload[t] = a;
+          }catch(e){ URL.revokeObjectURL(blobUrl); delete _musicPreload[t]; }
+        })
+        .catch(function(){
+          // fetch failed — fall back to direct URL (works in browser, may fail
+          // in Android WebView when offline, but it's the best we can do).
+          try{
+            const a = new Audio(src);
+            a.preload = 'auto'; a.loop = true; a.volume = 0;
+            a.load();
+            _musicPreload[t] = a;
+          }catch(e){ delete _musicPreload[t]; }
+        });
     }
   }
   function _killNode(a){
